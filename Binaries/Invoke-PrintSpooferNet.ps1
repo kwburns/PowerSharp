@@ -3,7 +3,7 @@ function Invoke-PrintSpooferNet
     Param([string]$Pipe,[string]$Command, [string]$Method)
     if(-not($Pipe) -Or -not($Command) -Or -not($Method)) 
     { 
-        Write-Host "Invalid number of args. Syntax: Invoke-PrintSpooferNet -Pipe '\\\\.\\pipe\\test\\pipe\\spoolss' -Command 'calc.exe' -Method <CreateProcessAsUserW, CreateProcessWithTokenW>"
+        Write-Host "Invalid number of args. Syntax: Invoke-PrintSpooferNet -Pipe '\\.\pipe\test\pipe\spoolss' -Command 'calc.exe' -Method <CreateProcessAsUserW, CreateProcessWithTokenW>"
 	      Break Script
     }
     # Base64 modified PrintSpooferNet.exe 
